@@ -1,0 +1,17 @@
+{
+  "name": "Crime Scene Clean",
+  "short_name": "CSC",
+  "description": "Gamified household cleaning tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#e94560",
+  "background_color": "#0a0a0f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
