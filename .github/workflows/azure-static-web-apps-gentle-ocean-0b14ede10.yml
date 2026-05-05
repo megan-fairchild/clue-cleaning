@@ -33,8 +33,10 @@ jobs:
           cd api
           npm ci
           npm run build
-          rm -rf node_modules
-          npm ci --omit=dev
+          rm -rf node_modules src tsconfig.json .funcignore
+          npm install --omit=dev --ignore-scripts
+          # Replace build script so Oryx doesn't fail trying to re-build
+          node -e "const p=require('./package.json'); p.scripts.build='echo ok'; require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
 
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
@@ -55,7 +57,6 @@ jobs:
           app_location: "/"
           api_location: "api"
           output_location: "dist"
-          skip_api_build: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
 
   close_pull_request_job:

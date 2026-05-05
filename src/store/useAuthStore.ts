@@ -85,8 +85,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           id: cloudUser.id,
           name: cloudUser.name,
           persona: (cloudUser.persona as CrewMember['persona']) || 'agent',
-          color: '#FFD700',
-          joinedAt: new Date().toISOString(),
+          xp: 0,
+          createdAt: new Date().toISOString(),
         };
 
         localStorage.setItem(TOKEN_KEY, token);
@@ -150,8 +150,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           id: cloudUser.id,
           name: cloudUser.name,
           persona: (cloudUser.persona as CrewMember['persona']) || 'agent',
-          color: '#FFD700',
-          joinedAt: new Date().toISOString(),
+          xp: 0,
+          createdAt: new Date().toISOString(),
         };
         localStorage.setItem(TOKEN_KEY, newToken);
         localStorage.setItem(SESSION_KEY, JSON.stringify({ memberId: cloudUser.id }));
@@ -199,8 +199,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               id: cloudUser.id,
               name: cloudUser.name,
               persona: (cloudUser.persona as CrewMember['persona']) || 'agent',
-              color: '#FFD700',
-              joinedAt: new Date().toISOString(),
+              xp: 0,
+              createdAt: new Date().toISOString(),
             };
             set({ currentUser: member, cloudUser, token: savedToken, isAdmin: cloudUser.role === 'admin', isCloud, hasHydrated: true });
             return;

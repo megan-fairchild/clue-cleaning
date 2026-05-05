@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { UserPlus, Trash2, Trophy, Key } from 'lucide-react';
+import { UserPlus, Trash2, Trophy } from 'lucide-react';
 import clsx from 'clsx';
 import { useCrewStore, useTaskStore, useUIStore, useAuthStore } from '../store';
 import { PERSONAS } from '../data/personas';

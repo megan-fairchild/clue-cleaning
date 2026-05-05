@@ -16,8 +16,6 @@ export default function Login() {
   const members = useCrewStore((s) => s.members);
   const showToast = useUIStore((s) => s.showToast);
 
-  const isFirstUser = isCloud ? true : credentials.length === 0; // Cloud detects first user server-side
-
   const [mode, setMode] = useState<'login' | 'setup'>(() =>
     !isCloud && credentials.length === 0 ? 'setup' : 'login'
   );
