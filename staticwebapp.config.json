@@ -1,32 +1,18 @@
 {
   "routes": [
     {
-      "route": "/api/*",
-      "allowedRoles": ["authenticated"]
+      "route": "/api/auth/*",
+      "allowedRoles": ["anonymous", "authenticated"]
     },
     {
-      "route": "/.auth/login/github",
-      "statusCode": 404
+      "route": "/api/*",
+      "allowedRoles": ["authenticated", "anonymous"]
     }
   ],
   "navigationFallback": {
     "rewrite": "/index.html"
   },
-  "responseOverrides": {
-    "401": {
-      "statusCode": 302,
-      "redirect": "/.auth/login/aad"
-    }
-  },
-  "auth": {
-    "identityProviders": {
-      "azureActiveDirectory": {
-        "registration": {
-          "openIdIssuer": "https://login.microsoftonline.com/common/v2.0",
-          "clientIdSettingName": "AAD_CLIENT_ID",
-          "clientSecretSettingName": "AAD_CLIENT_SECRET"
-        }
-      }
-    }
+  "globalHeaders": {
+    "Access-Control-Allow-Origin": "*"
   }
 }

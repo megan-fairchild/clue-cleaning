@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { UserPlus, Trash2, Trophy } from 'lucide-react';
+import { UserPlus, Trash2, Trophy, Key } from 'lucide-react';
 import clsx from 'clsx';
-import { useCrewStore, useTaskStore, useUIStore } from '../store';
+import { useCrewStore, useTaskStore, useUIStore, useAuthStore } from '../store';
 import { PERSONAS } from '../data/personas';
 import { TASK_TEMPLATES } from '../data/tasks';
 import { formatDistanceToNow, parseISO } from 'date-fns';
@@ -15,21 +15,52 @@ export default function Crew() {
   const removeMember = useCrewStore((s) => s.removeMember);
   const completions = useTaskStore((s) => s.completions);
   const showToast = useUIStore((s) => s.showToast);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isCloud = useAuthStore((s) => s.isCloud);
+  const registerLocal = useAuthStore((s) => s.register);
+  const registerCloud = useAuthStore((s) => s.registerCloud);
+  const removeCredentials = useAuthStore((s) => s.removeCredentials);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [newPersona, setNewPersona] = useState<PersonaId>('detective');
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newName.trim()) return;
-    addMember(newName.trim(), newPersona);
+    if (!newUsername.trim() || !newPassword) {
+      showToast('Username and password required', 'error');
+      return;
+    }
+    if (newPassword.length < 4) {
+      showToast('Password must be at least 4 characters', 'error');
+      return;
+    }
+
+    if (isCloud) {
+      const result = await registerCloud(newUsername.trim(), newPassword, newName.trim(), newPersona);
+      if (!result.success) {
+        showToast(result.error || 'Failed to create account', 'error');
+        return;
+      }
+    } else {
+      await addMember(newName.trim(), newPersona);
+      const allMembers = useCrewStore.getState().members;
+      const newMember = allMembers[allMembers.length - 1];
+      await registerLocal(newMember.id, newUsername.trim(), newPassword, false);
+    }
+
     showToast(`${newName.trim()} joined the crew!`, 'success');
     setNewName('');
+    setNewUsername('');
+    setNewPassword('');
     setShowAddModal(false);
   };
 
-  const handleRemove = (id: string, name: string) => {
+  const handleRemove = async (id: string, name: string) => {
     removeMember(id);
+    await removeCredentials(id);
     showToast(`${name} removed from crew`, 'info');
   };
 
@@ -65,12 +96,14 @@ export default function Crew() {
     <div className="px-4 py-4 max-w-lg mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-lg font-bold text-text">👥 Crew</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 bg-accent text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-accent-glow transition-colors"
-        >
-          <UserPlus size={14} /> Add
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-1.5 bg-accent text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-accent-glow transition-colors"
+          >
+            <UserPlus size={14} /> Add Member
+          </button>
+        )}
       </div>
 
       {/* Members */}
@@ -152,15 +185,35 @@ export default function Crew() {
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Crew Member">
         <div className="space-y-4">
           <div>
-            <label className="text-xs text-text-muted block mb-1">Name</label>
+            <label className="text-xs text-text-muted block mb-1">Display Name</label>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Enter name..."
               className="w-full bg-bg-card border border-bg-card rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             />
+          </div>
+          <div>
+            <label className="text-xs text-text-muted block mb-1">Username (for login)</label>
+            <input
+              type="text"
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              placeholder="Enter username..."
+              className="w-full bg-bg-card border border-bg-card rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-text-muted block mb-1">Password</label>
+            <input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Set initial password..."
+              className="w-full bg-bg-card border border-bg-card rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
+            />
+            <p className="text-[10px] text-text-muted mt-1">Min 4 characters. Member can change later.</p>
           </div>
           <div>
             <label className="text-xs text-text-muted block mb-2">Persona</label>
@@ -184,7 +237,7 @@ export default function Crew() {
           </div>
           <button
             onClick={handleAdd}
-            disabled={!newName.trim()}
+            disabled={!newName.trim() || !newUsername.trim() || !newPassword}
             className="w-full bg-accent text-white py-2 rounded-lg font-medium text-sm disabled:opacity-50 hover:bg-accent-glow transition-colors"
           >
             Add to Crew

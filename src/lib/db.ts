@@ -1,6 +1,13 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { CompletionRecord, CrewMember, TaskAssignment, TaskSchedule, TaskTemplate } from '../types';
 
+export interface AuthCredentials {
+  id: string; // matches CrewMember.id
+  username: string;
+  passwordHash: string;
+  isAdmin: boolean;
+}
+
 interface CrimeCleanDB {
   completions: { key: string; value: CompletionRecord };
   crew: { key: string; value: CrewMember };
@@ -8,10 +15,11 @@ interface CrimeCleanDB {
   settings: { key: string; value: { id: string; [key: string]: unknown } };
   schedules: { key: string; value: TaskSchedule };
   customTasks: { key: string; value: TaskTemplate };
+  auth: { key: string; value: AuthCredentials };
 }
 
 const DB_NAME = 'crime-clean';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export async function getDB(): Promise<IDBPDatabase<CrimeCleanDB>> {
   return openDB<CrimeCleanDB>(DB_NAME, DB_VERSION, {
@@ -35,6 +43,9 @@ export async function getDB(): Promise<IDBPDatabase<CrimeCleanDB>> {
       }
       if (!db.objectStoreNames.contains('customTasks')) {
         db.createObjectStore('customTasks', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('auth')) {
+        db.createObjectStore('auth', { keyPath: 'id' });
       }
     },
   });
@@ -132,4 +143,20 @@ export async function addCustomTask(task: TaskTemplate): Promise<void> {
 export async function removeCustomTask(id: string): Promise<void> {
   const database = await getDB();
   await database.delete('customTasks', id);
+}
+
+// Auth Credentials
+export async function getAllAuthCredentials(): Promise<AuthCredentials[]> {
+  const database = await getDB();
+  return database.getAll('auth');
+}
+
+export async function setAuthCredentials(cred: AuthCredentials): Promise<void> {
+  const database = await getDB();
+  await database.put('auth', cred);
+}
+
+export async function removeAuthCredentials(id: string): Promise<void> {
+  const database = await getDB();
+  await database.delete('auth', id);
 }

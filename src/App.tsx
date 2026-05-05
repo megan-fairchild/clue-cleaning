@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useProfileStore, useTaskStore, useCrewStore, useHydrated } from './store';
+import { useProfileStore, useTaskStore, useCrewStore, useAuthStore, useHydrated } from './store';
 import Header from './components/layout/Header';
 import BottomNav from './components/layout/BottomNav';
 import ToastContainer from './components/shared/ToastContainer';
@@ -11,20 +11,27 @@ import Crew from './pages/Crew';
 import Progress from './pages/Progress';
 import Alerts from './pages/Alerts';
 import Profile from './pages/Profile';
+import Login from './pages/Login';
 
 export default function App() {
   const hydrateProfile = useProfileStore((s) => s.hydrate);
   const hydrateTask = useTaskStore((s) => s.hydrate);
   const hydrateCrew = useCrewStore((s) => s.hydrate);
+  const hydrateAuth = useAuthStore((s) => s.hydrate);
+  const currentUser = useAuthStore((s) => s.currentUser);
   const hydrated = useHydrated();
 
   useEffect(() => {
     hydrateProfile();
     hydrateTask();
     hydrateCrew();
-  }, [hydrateProfile, hydrateTask, hydrateCrew]);
+    hydrateAuth();
+  }, [hydrateProfile, hydrateTask, hydrateCrew, hydrateAuth]);
 
   if (!hydrated) return <LoadingScreen />;
+
+  // Show login if no user is authenticated
+  if (!currentUser) return <Login />;
 
   return (
     <BrowserRouter>

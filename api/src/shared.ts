@@ -1,5 +1,6 @@
 import { CosmosClient, type Container, type Database } from '@azure/cosmos';
 import type { HttpRequest } from '@azure/functions';
+import jwt from 'jsonwebtoken';
 
 let database: Database;
 
@@ -18,28 +19,78 @@ export function getContainer(name: string): Container {
   return getDatabase().container(name);
 }
 
+const JWT_SECRET = () => process.env.JWT_SECRET || 'fairchild-manor-dev-secret';
+
 export interface AuthUser {
   userId: string;
-  identityProvider: string;
-  userDetails: string;
-  userRoles: string[];
+  username: string;
+  familyId: string | null;
+  role: 'admin' | 'member';
 }
 
+export interface UserDoc {
+  id: string;
+  partitionKey: string;
+  username: string;
+  passwordHash: string;
+  familyId: string | null;
+  role: 'admin' | 'member';
+  persona: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Hash password with SHA-256 + salt (matches frontend) */
+export async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + 'fairchild-manor-salt');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Create a JWT token for a user */
+export function createToken(user: AuthUser): string {
+  return jwt.sign(
+    { userId: user.userId, username: user.username, familyId: user.familyId, role: user.role },
+    JWT_SECRET(),
+    { expiresIn: '7d' }
+  );
+}
+
+/** Extract authenticated user from request — supports custom JWT (Authorization header or cookie) */
 export function getAuthUser(req: HttpRequest): AuthUser | null {
-  const header = req.headers.get('x-ms-client-principal');
-  if (!header) return null;
-  try {
-    const decoded = Buffer.from(header, 'base64').toString('utf8');
-    const principal = JSON.parse(decoded);
-    return {
-      userId: principal.userId,
-      identityProvider: principal.identityProvider,
-      userDetails: principal.userDetails,
-      userRoles: principal.userRoles || [],
-    };
-  } catch {
-    return null;
+  // Try custom JWT first (Authorization: Bearer <token>)
+  const authHeader = req.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET()) as AuthUser;
+      return decoded;
+    } catch {
+      return null;
+    }
   }
+
+  // Fallback: SWA built-in auth (x-ms-client-principal) for backwards compat
+  const header = req.headers.get('x-ms-client-principal');
+  if (header) {
+    try {
+      const decoded = Buffer.from(header, 'base64').toString('utf8');
+      const principal = JSON.parse(decoded);
+      return {
+        userId: principal.userId,
+        username: principal.userDetails,
+        familyId: null,
+        role: 'member',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 export interface FamilyMember {
