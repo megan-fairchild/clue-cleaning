@@ -1,5 +1,5 @@
 import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
-import { getContainer, hashPassword, createToken, type UserDoc } from '../shared.js';
+import { getContainer, hashPassword, createToken, verifyToken, type UserDoc } from '../shared.js';
 
 /**
  * POST /api/auth/register
@@ -53,23 +53,14 @@ app.http('authRegister', {
       if (!authHeader?.startsWith('Bearer ')) {
         return { status: 401, jsonBody: { error: 'Admin authorization required to register new users' } };
       }
-      // Token validation handled by getAuthUser — just check it's present
-      const jwt = await import('jsonwebtoken');
-      try {
-        const decoded = jwt.default.verify(
-          authHeader.slice(7),
-          process.env.JWT_SECRET || 'fairchild-manor-dev-secret'
-        ) as { role?: string };
-        if (decoded.role !== 'admin') {
-          return { status: 403, jsonBody: { error: 'Only admins can register new users' } };
-        }
-      } catch {
-        return { status: 401, jsonBody: { error: 'Invalid token' } };
+      const decoded = verifyToken(authHeader.slice(7));
+      if (!decoded || decoded.role !== 'admin') {
+        return { status: 403, jsonBody: { error: 'Only admins can register new users' } };
       }
     }
 
     const userId = crypto.randomUUID();
-    const passwordHash = await hashPassword(password);
+    const passwordHash = hashPassword(password);
     const now = new Date().toISOString();
 
     const userDoc: UserDoc = {

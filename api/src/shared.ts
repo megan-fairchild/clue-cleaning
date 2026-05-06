@@ -1,6 +1,7 @@
 import { CosmosClient, type Container, type Database } from '@azure/cosmos';
 import type { HttpRequest } from '@azure/functions';
 import jwt from 'jsonwebtoken';
+import { createHash } from 'node:crypto';
 
 let database: Database;
 
@@ -41,13 +42,11 @@ export interface UserDoc {
   updatedAt: string;
 }
 
-/** Hash password with SHA-256 + salt (matches frontend) */
-export async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'fairchild-manor-salt');
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+/** Hash password with SHA-256 + salt (matches frontend's crypto.subtle approach) */
+export function hashPassword(password: string): string {
+  return createHash('sha256')
+    .update(password + 'fairchild-manor-salt')
+    .digest('hex');
 }
 
 /** Create a JWT token for a user */
@@ -59,18 +58,20 @@ export function createToken(user: AuthUser): string {
   );
 }
 
-/** Extract authenticated user from request — supports custom JWT (Authorization header or cookie) */
+/** Verify a JWT token */
+export function verifyToken(token: string): AuthUser | null {
+  try {
+    return jwt.verify(token, JWT_SECRET()) as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
+/** Extract authenticated user from request — supports custom JWT (Authorization header) */
 export function getAuthUser(req: HttpRequest): AuthUser | null {
-  // Try custom JWT first (Authorization: Bearer <token>)
   const authHeader = req.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET()) as AuthUser;
-      return decoded;
-    } catch {
-      return null;
-    }
+    return verifyToken(authHeader.slice(7));
   }
 
   // Fallback: SWA built-in auth (x-ms-client-principal) for backwards compat

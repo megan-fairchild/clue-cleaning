@@ -31,7 +31,7 @@ app.http('authLogin', {
     }
 
     const userDoc = resources[0] as UserDoc;
-    const passwordHash = await hashPassword(password);
+    const passwordHash = hashPassword(password);
 
     if (userDoc.passwordHash !== passwordHash) {
       return { status: 401, jsonBody: { error: 'Invalid username or password' } };
